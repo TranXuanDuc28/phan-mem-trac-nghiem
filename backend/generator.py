@@ -57,8 +57,8 @@ Dưới đây là nội dung tài liệu bài giảng (slide):
 {slides_text_repr}
 """
 
-    # Use gemini-1.5-flash which is fast, lightweight, and supports JSON schemas
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    # Use gemini-2.5-flash which is fast, lightweight, and supports JSON schemas
+    model = genai.GenerativeModel("gemini-2.5-flash")
     
     try:
         response = model.generate_content(
