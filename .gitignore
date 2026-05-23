@@ -1,0 +1,39 @@
+# Node
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Local Database & Uploads
+quiz.db
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# OS / IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Agent Temporary Files
+.tempmediaStorage/
+.gemini/
+
+# Documents & Temp Office Files
+*.pptx
+*.pdf
+~$*
