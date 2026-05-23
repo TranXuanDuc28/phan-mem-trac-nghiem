@@ -38,13 +38,15 @@ export const fetchQuizzes = createAsyncThunk('quiz/fetchQuizzes', async (_, { re
 
 export const generateQuiz = createAsyncThunk(
   'quiz/generateQuiz',
-  async ({ slideId, numQuestions, difficulty, creator }, { rejectWithValue }) => {
+  async ({ slideId, numQuestions, difficulty, creator, start_slide, end_slide }, { rejectWithValue }) => {
     try {
       const response = await api.post('/api/generate', {
         slide_id: slideId,
         num_questions: numQuestions,
         difficulty: difficulty,
         creator: creator || 'Ẩn danh',
+        start_slide,
+        end_slide
       });
       return response.data;
     } catch (error) {

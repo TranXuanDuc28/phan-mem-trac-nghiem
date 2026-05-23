@@ -13,18 +13,33 @@ export default function FileUploader({ onQuizSelected }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [creator, setCreator] = useState(localStorage.getItem('slide_creator_name') || 'Ẩn danh');
+  
+  // Custom range selection states
+  const [useCustomRange, setUseCustomRange] = useState(false);
+  const [startSlide, setStartSlide] = useState(1);
+  const [endSlide, setEndSlide] = useState(1);
+
+  const selectedSlide = slides.find((s) => s.id.toString() === selectedSlideId);
+  const maxSlides = selectedSlide ? selectedSlide.content_text.length : 1;
 
   useEffect(() => {
     dispatch(fetchSlides());
     dispatch(fetchQuizzes());
   }, [dispatch]);
 
-  // Set default selected slide if available
+  // Set default selected slide if available and reset range boundaries
   useEffect(() => {
     if (slides.length > 0 && !selectedSlideId) {
       setSelectedSlideId(slides[0].id.toString());
     }
   }, [slides, selectedSlideId]);
+
+  useEffect(() => {
+    if (selectedSlide) {
+      setStartSlide(1);
+      setEndSlide(selectedSlide.content_text.length);
+    }
+  }, [selectedSlideId, slides]);
 
   const handleFileDrop = (e) => {
     e.preventDefault();
@@ -60,12 +75,20 @@ export default function FileUploader({ onQuizSelected }) {
   const handleGenerate = (e) => {
     e.preventDefault();
     if (!selectedSlideId) return;
-    dispatch(generateQuiz({
+    
+    const payload = {
       slideId: parseInt(selectedSlideId),
       numQuestions,
       difficulty,
       creator
-    }))
+    };
+
+    if (useCustomRange) {
+      payload.start_slide = startSlide;
+      payload.end_slide = endSlide;
+    }
+
+    dispatch(generateQuiz(payload))
     .unwrap()
     .then((quiz) => {
       onQuizSelected(quiz);
@@ -231,6 +254,78 @@ export default function FileUploader({ onQuizSelected }) {
                     </div>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="d-block small text-slate-400 mb-2 uppercase tracking-wider font-semibold" style={{ fontSize: '11px' }}>
+                  Phạm vi Slide học tập
+                </label>
+                <div className="d-flex align-items-center gap-4 mb-2">
+                  <div className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="rangeType"
+                      id="allSlidesRadio"
+                      checked={!useCustomRange}
+                      onChange={() => setUseCustomRange(false)}
+                      disabled={generating}
+                    />
+                    <label className="form-check-label text-slate-300 small cursor-pointer" htmlFor="allSlidesRadio">
+                      Tất cả slide ({maxSlides} trang)
+                    </label>
+                  </div>
+                  <div className="form-check">
+                    <input
+                      className="form-check-input"
+                      type="radio"
+                      name="rangeType"
+                      id="customRangeRadio"
+                      checked={useCustomRange}
+                      onChange={() => setUseCustomRange(true)}
+                      disabled={generating}
+                    />
+                    <label className="form-check-label text-slate-300 small cursor-pointer" htmlFor="customRangeRadio">
+                      Chọn khoảng Slide
+                    </label>
+                  </div>
+                </div>
+
+                {useCustomRange && (
+                  <div className="row g-2 align-items-center mt-2 p-3 rounded bg-slate-950/40 border border-slate-900 animate-fade-in">
+                    <div className="col-5">
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="small text-slate-400 shrink-0" style={{ fontSize: '12px' }}>Từ trang:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={maxSlides}
+                          value={startSlide}
+                          onChange={(e) => setStartSlide(Math.max(1, Math.min(maxSlides, parseInt(e.target.value) || 1)))}
+                          className="form-control text-center py-1.5"
+                          style={{ fontSize: '13px' }}
+                          disabled={generating}
+                        />
+                      </div>
+                    </div>
+                    <div className="col-2 text-center text-slate-500">—</div>
+                    <div className="col-5">
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="small text-slate-400 shrink-0" style={{ fontSize: '12px' }}>Đến trang:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={maxSlides}
+                          value={endSlide}
+                          onChange={(e) => setEndSlide(Math.max(1, Math.min(maxSlides, parseInt(e.target.value) || 1)))}
+                          className="form-control text-center py-1.5"
+                          style={{ fontSize: '13px' }}
+                          disabled={generating}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </form>
           </div>

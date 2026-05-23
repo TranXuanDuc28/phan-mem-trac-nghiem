@@ -72,6 +72,8 @@ class QuizGenerateRequest(BaseModel):
     difficulty: str = "Trung bình"
     language: str = "Tiếng Việt"
     creator: Optional[str] = "Ẩn danh"
+    start_slide: Optional[int] = None
+    end_slide: Optional[int] = None
 
 class QuizResponse(BaseModel):
     id: int
@@ -186,17 +188,39 @@ def generate_quiz(
             detail="Vui lòng cung cấp Gemini API Key (nhập trong phần cấu hình hoặc cấu hình trên server)."
         )
         
-    # 3. Call AI Generator
+    # 3. Filter slide contents by requested range
+    slide_contents = slide.content_text
+    is_filtered = False
+    start_slide = 1
+    end_slide = len(slide_contents)
+    
+    if request.start_slide is not None or request.end_slide is not None:
+        start_slide = request.start_slide if request.start_slide is not None else 1
+        end_slide = request.end_slide if request.end_slide is not None else len(slide_contents)
+        slide_contents = [s for s in slide_contents if start_slide <= s.get("slide_num", 0) <= end_slide]
+        is_filtered = True
+
+    if not slide_contents:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Không tìm thấy slide nào trong khoảng đã chọn (từ slide {start_slide} đến {end_slide})."
+        )
+
+    # 4. Call AI Generator
     try:
         questions = generate_quiz_from_slides(
-            slide_contents=slide.content_text,
+            slide_contents=slide_contents,
             api_key=api_key,
             num_questions=request.num_questions,
             difficulty=request.difficulty
         )
         
-        # 4. Save Quiz to database
-        title = f"Trắc nghiệm: {os.path.splitext(slide.filename)[0]} ({request.difficulty})"
+        # 5. Save Quiz to database
+        if is_filtered:
+            title = f"Trắc nghiệm: {os.path.splitext(slide.filename)[0]} (Slide {start_slide}-{end_slide}) ({request.difficulty})"
+        else:
+            title = f"Trắc nghiệm: {os.path.splitext(slide.filename)[0]} ({request.difficulty})"
+            
         db_quiz = Quiz(
             slide_id=slide.id,
             title=title,
