@@ -4,9 +4,14 @@ import sys
 # Ensure backend can be imported
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.parser import extract_slide_content
-from backend.database import SessionLocal, Base, engine
-from backend.models import Slide
+try:
+    from backend.parser import extract_slide_content
+    from backend.database import SessionLocal, Base, engine
+    from backend.models import Slide
+except ImportError:
+    from parser import extract_slide_content
+    from database import SessionLocal, Base, engine
+    from models import Slide
 
 def test_parser_and_db():
     print("Testing parser...")

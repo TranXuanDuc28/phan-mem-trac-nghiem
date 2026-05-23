@@ -9,10 +9,16 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from sqlalchemy import text
-from backend.database import engine, get_db, Base
-from backend.models import Slide, Quiz, QuizAttempt
-from backend.parser import extract_slide_content
-from backend.generator import generate_quiz_from_slides
+try:
+    from backend.database import engine, get_db, Base
+    from backend.models import Slide, Quiz, QuizAttempt
+    from backend.parser import extract_slide_content
+    from backend.generator import generate_quiz_from_slides
+except ImportError:
+    from database import engine, get_db, Base
+    from models import Slide, Quiz, QuizAttempt
+    from parser import extract_slide_content
+    from generator import generate_quiz_from_slides
 
 # Initialize DB tables (creates tables if they don't exist)
 Base.metadata.create_all(bind=engine)

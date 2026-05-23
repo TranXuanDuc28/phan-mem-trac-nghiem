@@ -1,7 +1,10 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text, JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from backend.database import Base
+try:
+    from backend.database import Base
+except ImportError:
+    from database import Base
 
 class Slide(Base):
     __tablename__ = "slides"
