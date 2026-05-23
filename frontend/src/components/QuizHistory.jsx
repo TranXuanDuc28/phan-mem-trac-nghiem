@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchAttempts, fetchQuizzes, setCurrentQuiz } from '../store/quizSlice';
 import { History, Calendar, CheckCircle2, Clock, Play, BookOpen } from 'lucide-react';
 
-export default function QuizHistory({ onQuizSelected }) {
+export default function QuizHistory({ onQuizSelected, onViewAttempt }) {
   const dispatch = useDispatch();
   const { attempts, quizzes, loading } = useSelector((state) => state.quiz);
 
@@ -117,13 +117,22 @@ export default function QuizHistory({ onQuizSelected }) {
                     </td>
                     <td className="text-end">
                       {quizTitle !== 'Đề trắc nghiệm đã bị xóa' && (
-                        <button
-                          onClick={() => handleRetake(attempt.quiz_id)}
-                          className="btn btn-outline-primary py-1 px-2.5 d-inline-flex align-items-center gap-1"
-                          style={{ fontSize: '11px' }}
-                        >
-                          <Play size={10} /> Làm lại
-                        </button>
+                        <div className="d-flex justify-content-end gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => onViewAttempt && onViewAttempt(attempt)}
+                            className="btn btn-outline-info py-1 px-2.5 d-inline-flex align-items-center gap-1"
+                            style={{ fontSize: '11px', borderColor: 'rgba(13, 202, 240, 0.4)', color: '#0dcaf0' }}
+                          >
+                            <BookOpen size={10} /> Xem lại
+                          </button>
+                          <button
+                            onClick={() => handleRetake(attempt.quiz_id)}
+                            className="btn btn-outline-primary py-1 px-2.5 d-inline-flex align-items-center gap-1"
+                            style={{ fontSize: '11px' }}
+                          >
+                            <Play size={10} /> Làm lại
+                          </button>
+                        </div>
                       )}
                     </td>
                   </tr>

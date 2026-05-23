@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { clearCurrentQuiz, saveAttempt } from './store/quizSlice';
+import { clearCurrentQuiz, saveAttempt, setCurrentQuiz } from './store/quizSlice';
 import ApiKeyConfig from './components/ApiKeyConfig';
 import FileUploader from './components/FileUploader';
 import QuizLibrary from './components/QuizLibrary';
@@ -11,7 +11,7 @@ import { Sparkles, BrainCircuit, RefreshCw } from 'lucide-react';
 
 export default function App() {
   const dispatch = useDispatch();
-  const { currentQuiz, apiKey } = useSelector((state) => state.quiz);
+  const { currentQuiz, apiKey, quizzes } = useSelector((state) => state.quiz);
   
   const [activeAttempt, setActiveAttempt] = useState(null); // stores active attempt details for results view
 
@@ -36,6 +36,15 @@ export default function App() {
   // Switch to quiz taker directly from history retake
   const handleQuizSelected = (quiz) => {
     setActiveAttempt(null);
+  };
+
+  // View detailed review of a past attempt
+  const handleViewAttempt = (attempt) => {
+    const quiz = quizzes.find((q) => q.id === attempt.quiz_id);
+    if (quiz) {
+      dispatch(setCurrentQuiz(quiz));
+      setActiveAttempt(attempt);
+    }
   };
 
   return (
@@ -119,7 +128,7 @@ export default function App() {
               
               {/* Right column (History) */}
               <div className="col-lg-4">
-                <QuizHistory onQuizSelected={handleQuizSelected} />
+                <QuizHistory onQuizSelected={handleQuizSelected} onViewAttempt={handleViewAttempt} />
               </div>
             </div>
           </div>
