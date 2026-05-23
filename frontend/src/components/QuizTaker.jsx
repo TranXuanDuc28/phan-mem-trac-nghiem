@@ -4,6 +4,7 @@ import { Timer, ArrowLeft, ArrowRight, CheckCircle, HelpCircle } from 'lucide-re
 export default function QuizTaker({ quiz, onFinished, onCancel }) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [answers, setAnswers] = useState({}); // Stores key-value: { questionIndex: selectedOptionString }
+  const [checkedQuestions, setCheckedQuestions] = useState({}); // Stores key-value: { questionIndex: boolean }
   const [timeSpent, setTimeSpent] = useState(0); // in seconds
 
   const questions = quiz.questions;
@@ -24,6 +25,7 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
   };
 
   const handleSelectOption = (option) => {
+    if (checkedQuestions[currentIdx]) return; // Lock options once checked
     setAnswers((prev) => ({
       ...prev,
       [currentIdx]: option
@@ -105,21 +107,70 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
         <div className="d-flex flex-column gap-3 mt-4 ps-md-4">
           {currentQuestion.options.map((option, idx) => {
             const isSelected = answers[currentIdx] === option;
+            const isChecked = checkedQuestions[currentIdx];
+            const isCorrect = option === currentQuestion.correct_answer;
             const letter = String.fromCharCode(65 + idx); // A, B, C, D
+
+            let btnClass = "";
+            if (isChecked) {
+              if (isCorrect) {
+                btnClass = "correct";
+              } else if (isSelected) {
+                btnClass = "incorrect";
+              } else {
+                btnClass = "disabled-fade";
+              }
+            } else if (isSelected) {
+              btnClass = "selected";
+            }
+
             return (
               <button
                 key={idx}
+                disabled={isChecked}
                 onClick={() => handleSelectOption(option)}
-                className={`option-button d-flex align-items-center ${isSelected ? 'selected' : ''}`}
+                className={`option-button d-flex align-items-center ${btnClass}`}
               >
                 <span className="option-letter">
                   {letter}
                 </span>
                 <span className="flex-grow-1 text-wrap">{option}</span>
+                {isChecked && isCorrect && <span className="ms-auto text-success small fw-bold">✓ ĐÚNG</span>}
+                {isChecked && isSelected && !isCorrect && <span className="ms-auto text-danger small fw-bold">✗ SAI</span>}
               </button>
             );
           })}
         </div>
+
+        {/* Check Answer Button */}
+        {!checkedQuestions[currentIdx] && answers[currentIdx] && (
+          <div className="ps-md-4 mt-3">
+            <button
+              onClick={() => setCheckedQuestions((prev) => ({ ...prev, [currentIdx]: true }))}
+              className="btn btn-warning w-100 py-2.5 fw-bold animate-fade-in shadow-sm"
+              style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#000' }}
+            >
+              🔍 Kiểm tra đáp án
+            </button>
+          </div>
+        )}
+
+        {/* Detailed Explanation */}
+        {checkedQuestions[currentIdx] && (
+          <div className="ps-md-4 mt-4">
+            <div className="p-4 rounded-3 bg-slate-950 border border-slate-800 animate-fade-in">
+              <h4 className="fw-semibold text-indigo-400 mb-2 h6" style={{ fontSize: '14px' }}>💡 Giải thích chi tiết:</h4>
+              <p className="text-slate-300 mb-2 small leading-relaxed" style={{ fontSize: '13px' }}>
+                {currentQuestion.explanation}
+              </p>
+              {currentQuestion.source_slide && (
+                <div className="text-slate-500 small" style={{ fontSize: '11px' }}>
+                  Nguồn kiến thức: Slide trang {currentQuestion.source_slide}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Actions footer */}

@@ -287,3 +287,35 @@ h1, h2, h3, h4, h5, h6 {
     max-width: 100%;
   }
 }
+
+/* Option button feedback states */
+.option-button.correct {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #a7f3d0 !important;
+  box-shadow: 0 0 15px -3px rgba(16, 185, 129, 0.2);
+}
+
+.option-button.correct .option-letter {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  border-color: #10b981 !important;
+}
+
+.option-button.incorrect {
+  border-color: #f43f5e !important;
+  background: rgba(244, 63, 94, 0.15) !important;
+  color: #fecdd3 !important;
+  box-shadow: 0 0 15px -3px rgba(244, 63, 94, 0.2);
+}
+
+.option-button.incorrect .option-letter {
+  background: #f43f5e !important;
+  color: #ffffff !important;
+  border-color: #f43f5e !important;
+}
+
+.option-button.disabled-fade {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
