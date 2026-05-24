@@ -174,23 +174,31 @@ def upload_quiz(
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
             
-        # Parse DOCX questions directly
+        # Parse DOCX questions
         questions = []
         parse_error = None
-        try:
-            questions = extract_docx_quiz(file_path)
-        except Exception as pe:
-            parse_error = pe
-            
+        api_key = x_gemini_api_key or os.getenv("GEMINI_API_KEY")
+        
+        # 1. Try AI parser first if API key is available
+        if api_key:
+            try:
+                raw_text = extract_docx_raw_text(file_path)
+                questions = parse_large_docx_quiz_with_ai(raw_text, api_key)
+            except Exception as ai_e:
+                parse_error = ai_e
+                print(f"AI Parsing failed, falling back to manual: {ai_e}")
+                
+        # 2. Fallback to manual parser if AI parsing failed or wasn't run
         if not questions:
-            # Fallback to AI parser if Gemini API Key is available
-            api_key = x_gemini_api_key or os.getenv("GEMINI_API_KEY")
+            try:
+                questions = extract_docx_quiz(file_path)
+            except Exception as pe:
+                if not parse_error:
+                    parse_error = pe
+                    
+        if not questions:
             if api_key:
-                try:
-                    raw_text = extract_docx_raw_text(file_path)
-                    questions = parse_large_docx_quiz_with_ai(raw_text, api_key)
-                except Exception as ai_e:
-                    raise ValueError(f"Không thể phân tích bằng thuật toán thường và gặp lỗi AI: {str(ai_e)}")
+                raise ValueError(f"Không thể phân tích file Word bằng cả AI và phương pháp thủ công. Lỗi chi tiết: {str(parse_error)}")
             else:
                 if parse_error:
                     raise ValueError(f"Không tìm thấy câu hỏi hợp lệ: {str(parse_error)}. Vui lòng cung cấp Gemini API Key để AI tự động chuyển đổi định dạng và nhận diện câu hỏi.")
