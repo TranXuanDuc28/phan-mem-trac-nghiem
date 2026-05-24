@@ -218,7 +218,13 @@ def extract_docx_quiz(file_path: str):
             if p_text:
                 # Preprocess inline options with missing spaces
                 # e.g., "giai đoạnB. 2 giai đoạn" -> "giai đoạn B. 2 giai đoạn"
-                p_text = re.sub(r'([^\s\.\>])([A-Da-d][\.\)])', r'\1 \2', p_text)
+                def _add_option_space(match):
+                    prefix = match.group(1)
+                    opt = match.group(2)
+                    if prefix.isupper():
+                        return match.group(0)
+                    return f"{prefix} {opt}"
+                p_text = re.sub(r'([^\s\.\>])([A-D][\.\)])', _add_option_space, p_text)
                 
                 # Split paragraph content if it contains inline questions or options
                 split_parts = split_paragraph_content(p_text)
