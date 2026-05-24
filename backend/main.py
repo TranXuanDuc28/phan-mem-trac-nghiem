@@ -12,13 +12,13 @@ from sqlalchemy import text
 try:
     from backend.database import engine, get_db, Base
     from backend.models import Slide, Quiz, QuizAttempt
-    from backend.parser import extract_slide_content, extract_docx_quiz
-    from backend.generator import generate_quiz_from_slides
+    from backend.parser import extract_slide_content, extract_docx_quiz, extract_docx_raw_text
+    from backend.generator import generate_quiz_from_slides, parse_large_docx_quiz_with_ai
 except ImportError:
     from database import engine, get_db, Base
     from models import Slide, Quiz, QuizAttempt
-    from parser import extract_slide_content, extract_docx_quiz
-    from generator import generate_quiz_from_slides
+    from parser import extract_slide_content, extract_docx_quiz, extract_docx_raw_text
+    from generator import generate_quiz_from_slides, parse_large_docx_quiz_with_ai
 
 # Initialize DB tables (creates tables if they don't exist)
 Base.metadata.create_all(bind=engine)
@@ -160,6 +160,7 @@ def upload_slide(
 def upload_quiz(
     file: UploadFile = File(...),
     creator: str = Form("Ẩn danh"),
+    x_gemini_api_key: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
     # Validate file extension
@@ -174,10 +175,27 @@ def upload_quiz(
             shutil.copyfileobj(file.file, buffer)
             
         # Parse DOCX questions directly
-        questions = extract_docx_quiz(file_path)
-        
+        questions = []
+        parse_error = None
+        try:
+            questions = extract_docx_quiz(file_path)
+        except Exception as pe:
+            parse_error = pe
+            
         if not questions:
-            raise ValueError("Không tìm thấy câu hỏi trắc nghiệm hợp lệ nào trong file Word.")
+            # Fallback to AI parser if Gemini API Key is available
+            api_key = x_gemini_api_key or os.getenv("GEMINI_API_KEY")
+            if api_key:
+                try:
+                    raw_text = extract_docx_raw_text(file_path)
+                    questions = parse_large_docx_quiz_with_ai(raw_text, api_key)
+                except Exception as ai_e:
+                    raise ValueError(f"Không thể phân tích bằng thuật toán thường và gặp lỗi AI: {str(ai_e)}")
+            else:
+                if parse_error:
+                    raise ValueError(f"Không tìm thấy câu hỏi hợp lệ: {str(parse_error)}. Vui lòng cung cấp Gemini API Key để AI tự động chuyển đổi định dạng và nhận diện câu hỏi.")
+                else:
+                    raise ValueError("Không tìm thấy câu hỏi trắc nghiệm hợp lệ nào theo cấu trúc thông thường. Vui lòng cấu hình Gemini API Key ở phần cài đặt để AI tự động sửa định dạng và nhận diện câu hỏi cho bạn.")
             
         # Save source file as a Slide record
         extracted_content = [{"slide_num": 1, "content": f"Đề trắc nghiệm tự động nhập từ file Word: {file.filename}"}]

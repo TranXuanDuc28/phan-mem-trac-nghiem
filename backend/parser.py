@@ -85,11 +85,60 @@ def extract_slide_content(file_path: str):
     else:
         raise ValueError(f"Unsupported file format: {ext}. Only .pptx and .pdf are supported.")
 
-def is_red(color):
-    if not color:
+def is_red_or_highlighted(r_el, namespaces):
+    rPr = r_el.find('w:rPr', namespaces)
+    if rPr is None:
         return False
-    color = color.upper()
-    return color.startswith("FF") or color.startswith("EE") or color.startswith("DD") or color == "RED"
+        
+    color_el = rPr.find('w:color', namespaces)
+    if color_el is not None:
+        val = color_el.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+        if val:
+            val = val.upper()
+            if val.startswith(("FF", "EE", "DD")) or val == "RED":
+                return True
+                
+    highlight_el = rPr.find('w:highlight', namespaces)
+    if highlight_el is not None:
+        val = highlight_el.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
+        if val and val.lower() in ("red", "lightred"):
+            return True
+            
+    return False
+
+def extract_docx_raw_text(file_path: str) -> str:
+    """
+    Extracts raw text paragraph-by-paragraph from a DOCX file, wrapping colored/highlighted
+    runs in <correct>...</correct> tags to serve as context for the AI parser.
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+    with zipfile.ZipFile(file_path) as z:
+        xml_content = z.read('word/document.xml')
+        root = ET.fromstring(xml_content)
+        
+        namespaces = {
+            'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        }
+        
+        paragraphs = root.findall('.//w:p', namespaces)
+        
+        lines = []
+        for p in paragraphs:
+            text_parts = []
+            for r in p.findall('.//w:r', namespaces):
+                t = r.find('w:t', namespaces)
+                if t is not None and t.text:
+                    if is_red_or_highlighted(r, namespaces):
+                        text_parts.append(f"<correct>{t.text}</correct>")
+                    else:
+                        text_parts.append(t.text)
+            p_text = "".join(text_parts).strip()
+            if p_text:
+                lines.append(p_text)
+                
+        return "\n".join(lines)
 
 def split_paragraph_content(p_text: str):
     # 1. First split by any embedded "Câu [số]"
@@ -137,7 +186,7 @@ def split_paragraph_content(p_text: str):
 def extract_docx_quiz(file_path: str):
     """
     Parses a DOCX file directly and extracts multiple choice questions,
-    options, and correct answers (detected by red font).
+    options, and correct answers (detected by red font or highlight).
     """
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
@@ -156,17 +205,10 @@ def extract_docx_quiz(file_path: str):
         for p in paragraphs:
             text_parts = []
             for r in p.findall('.//w:r', namespaces):
-                rPr = r.find('w:rPr', namespaces)
-                color = None
-                if rPr is not None:
-                    color_el = rPr.find('w:color', namespaces)
-                    if color_el is not None:
-                        color = color_el.get('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}val')
-                
                 text_el = r.find('w:t', namespaces)
                 if text_el is not None and text_el.text:
                     txt = text_el.text
-                    if is_red(color):
+                    if is_red_or_highlighted(r, namespaces):
                         text_parts.append(f"<correct>{txt}</correct>")
                     else:
                         text_parts.append(txt)

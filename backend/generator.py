@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import google.generativeai as genai
 import pydantic
 from typing import List, Dict, Optional
@@ -77,3 +78,116 @@ Dưới đây là nội dung tài liệu bài giảng (slide):
         # Fallback error handling
         print(f"Error calling Gemini API: {e}")
         raise RuntimeError(f"Lỗi khi gọi Gemini API để tạo câu hỏi: {str(e)}")
+
+class ParsedQuizQuestion(pydantic.BaseModel):
+    question: str = pydantic.Field(description="Nội dung câu hỏi trắc nghiệm.")
+    options: List[str] = pydantic.Field(description="Danh sách gồm chính xác 4 đáp án lựa chọn (A, B, C, D).")
+    correct_answer: str = pydantic.Field(description="Đáp án đúng (phải trùng khớp hoàn toàn với một trong các phần tử trong options).")
+    explanation: str = pydantic.Field(description="Giải thích chi tiết tại sao đáp án này đúng.")
+
+class ParsedQuizOutput(pydantic.BaseModel):
+    questions: List[ParsedQuizQuestion]
+
+def parse_docx_quiz_with_ai(raw_text: str, api_key: str) -> List[Dict]:
+    """
+    Uses Gemini AI to parse a messy DOCX text with <correct> markers and structure it into a clean list of questions.
+    """
+    if not api_key:
+        raise ValueError("API Key is missing for AI parsing.")
+
+    genai.configure(api_key=api_key)
+
+    prompt = f"""
+Bạn là một chuyên gia xử lý dữ liệu và xây dựng đề thi trắc nghiệm từ văn bản thô.
+Dưới đây là nội dung thô trích xuất từ một tài liệu Word (.docx). Trong tài liệu này, các đáp án đúng được đánh dấu bằng thẻ `<correct>...</correct>` (hoặc có thể một phần đáp án nằm trong thẻ đó).
+
+Nhiệm vụ của bạn:
+1. Đọc và phân tích toàn bộ văn bản thô bên dưới để nhận diện tất cả các câu hỏi trắc nghiệm.
+2. Với mỗi câu hỏi:
+   - Trích xuất tiêu đề câu hỏi sạch (bỏ các tiền tố số thứ tự lộn xộn nếu có, chỉ giữ lại nội dung câu hỏi chính xác).
+   - Trích xuất đúng 4 đáp án lựa chọn (options). Nếu tài liệu gốc viết dính liền, viết không cách dòng hoặc thiếu các ký hiệu A, B, C, D, hãy tự động phân tách và chuẩn hóa chúng thành 4 tùy chọn sạch sẽ.
+   - Xác định đáp án đúng (correct_answer) dựa trên sự hiện diện của thẻ `<correct>` trong tài liệu thô. Đáp án đúng bắt buộc phải trùng khớp hoàn toàn với một trong 4 phần tử trong danh sách `options`.
+   - Viết lời giải thích ngắn gọn, xúc tích về lý do chọn đáp án này.
+3. Trả về kết quả khớp hoàn toàn với định dạng JSON được cấu hình theo schema ParsedQuizOutput.
+
+Dưới đây là nội dung tài liệu thô:
+{raw_text}
+"""
+    model = genai.GenerativeModel("gemini-2.5-flash")
+    
+    try:
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json",
+                response_schema=ParsedQuizOutput,
+                temperature=0.1
+            )
+        )
+        result_json = json.loads(response.text)
+        
+        # Map to our standard schema structure
+        questions = []
+        for q in result_json.get("questions", []):
+            questions.append({
+                "question": q.get("question", ""),
+                "options": q.get("options", []),
+                "correct_answer": q.get("correct_answer", ""),
+                "explanation": q.get("explanation", "Được nhập tự động qua AI từ file Word."),
+                "source_slide": 1
+            })
+        return questions
+    except Exception as e:
+        print(f"Error calling Gemini API for DOCX parsing: {e}")
+        raise RuntimeError(f"Lỗi khi gọi Gemini API để phân tích cú pháp đề thi: {str(e)}")
+
+def chunk_paragraphs(paragraphs: List[str], chunk_size: int = 15) -> List[str]:
+    chunks = []
+    current_chunk = []
+    potential_questions = 0
+    
+    for p in paragraphs:
+        p_clean = p.strip()
+        if not p_clean:
+            continue
+        is_boundary = (
+            re.match(r'^(?:[Cc]âu|CÂU)\s*\d+', p_clean, re.IGNORECASE) is not None or
+            re.match(r'^\d+[\.:]', p_clean) is not None or
+            p_clean.endswith('?') or
+            p_clean.endswith(':')
+        )
+        
+        if (is_boundary and potential_questions >= chunk_size) or len(current_chunk) >= 80:
+            if current_chunk:
+                chunks.append("\n".join(current_chunk))
+            current_chunk = [p_clean]
+            potential_questions = 1 if is_boundary else 0
+        else:
+            current_chunk.append(p_clean)
+            if is_boundary:
+                potential_questions += 1
+                
+    if current_chunk:
+        chunks.append("\n".join(current_chunk))
+    return chunks
+
+def parse_large_docx_quiz_with_ai(raw_text: str, api_key: str) -> List[Dict]:
+    """
+    Splits the raw text into manageable chunks, parses each chunk using Gemini,
+    and returns the combined list of parsed quiz questions.
+    """
+    paragraphs = raw_text.split("\n")
+    chunks = chunk_paragraphs(paragraphs, chunk_size=15)
+    
+    all_questions = []
+    for idx, chunk_text in enumerate(chunks):
+        print(f"Parsing chunk {idx+1}/{len(chunks)} using Gemini AI...")
+        try:
+            chunk_questions = parse_docx_quiz_with_ai(chunk_text, api_key)
+            all_questions.extend(chunk_questions)
+        except Exception as e:
+            print(f"Error parsing chunk {idx+1}: {e}")
+            if not all_questions:
+                raise e
+                
+    return all_questions

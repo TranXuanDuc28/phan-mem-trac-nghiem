@@ -73,14 +73,17 @@ export const saveAttempt = createAsyncThunk('quiz/saveAttempt', async (attemptDa
   }
 });
 
-export const importQuizDocx = createAsyncThunk('quiz/importQuizDocx', async ({ file, creator }, { rejectWithValue }) => {
+export const importQuizDocx = createAsyncThunk('quiz/importQuizDocx', async ({ file, creator }, { getState, rejectWithValue }) => {
   try {
+    const state = getState();
+    const apiKey = state.quiz?.apiKey || '';
     const formData = new FormData();
     formData.append('file', file);
     formData.append('creator', creator || 'Ẩn danh');
     const response = await api.post('/api/upload-quiz', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        'X-Gemini-API-Key': apiKey,
       },
     });
     return response.data;
@@ -89,8 +92,31 @@ export const importQuizDocx = createAsyncThunk('quiz/importQuizDocx', async ({ f
   }
 });
 
+// Parse saved keys or migrate old single key
+const getInitialKeys = () => {
+  try {
+    const savedKeys = JSON.parse(localStorage.getItem('gemini_api_keys') || '[]');
+    if (savedKeys.length > 0) return savedKeys;
+  } catch (e) {}
+  
+  const oldKey = localStorage.getItem('gemini_api_key') || '';
+  if (oldKey) {
+    const initial = [{ id: 'key_default', name: 'Mặc định (Default)', value: oldKey }];
+    localStorage.setItem('gemini_api_keys', JSON.stringify(initial));
+    localStorage.setItem('gemini_active_api_key_id', 'key_default');
+    return initial;
+  }
+  return [];
+};
+
+const initialKeysList = getInitialKeys();
+const activeKeyId = localStorage.getItem('gemini_active_api_key_id') || (initialKeysList.length > 0 ? initialKeysList[0].id : '');
+const activeKeyVal = initialKeysList.find(k => k.id === activeKeyId)?.value || '';
+
 const initialState = {
-  apiKey: localStorage.getItem('gemini_api_key') || '',
+  apiKeys: initialKeysList,
+  activeApiKeyId: activeKeyId,
+  apiKey: activeKeyVal,
   slides: [],
   quizzes: [],
   attempts: [],
@@ -107,6 +133,37 @@ const quizSlice = createSlice({
     setApiKey: (state, action) => {
       state.apiKey = action.payload;
       localStorage.setItem('gemini_api_key', action.payload);
+      
+      // Auto-migrate or sync to list if not present
+      if (action.payload && !state.apiKeys.some(k => k.value === action.payload)) {
+        const newId = `key_${Date.now()}`;
+        state.apiKeys.push({ id: newId, name: `API Key ${state.apiKeys.length + 1}`, value: action.payload });
+        state.activeApiKeyId = newId;
+        localStorage.setItem('gemini_api_keys', JSON.stringify(state.apiKeys));
+        localStorage.setItem('gemini_active_api_key_id', newId);
+      }
+    },
+    saveApiKeys: (state, action) => {
+      state.apiKeys = action.payload;
+      localStorage.setItem('gemini_api_keys', JSON.stringify(action.payload));
+      
+      const activeExists = state.apiKeys.some(k => k.id === state.activeApiKeyId);
+      if (!activeExists) {
+        state.activeApiKeyId = state.apiKeys.length > 0 ? state.apiKeys[0].id : '';
+        localStorage.setItem('gemini_active_api_key_id', state.activeApiKeyId);
+      }
+      
+      const activeKeyObj = state.apiKeys.find(k => k.id === state.activeApiKeyId);
+      state.apiKey = activeKeyObj ? activeKeyObj.value : '';
+      localStorage.setItem('gemini_api_key', state.apiKey);
+    },
+    setActiveApiKeyId: (state, action) => {
+      state.activeApiKeyId = action.payload;
+      localStorage.setItem('gemini_active_api_key_id', action.payload);
+      
+      const activeKeyObj = state.apiKeys.find(k => k.id === action.payload);
+      state.apiKey = activeKeyObj ? activeKeyObj.value : '';
+      localStorage.setItem('gemini_api_key', state.apiKey);
     },
     clearError: (state) => {
       state.error = null;
@@ -207,5 +264,5 @@ const quizSlice = createSlice({
   },
 });
 
-export const { setApiKey, clearError, setCurrentQuiz, clearCurrentQuiz } = quizSlice.actions;
+export const { setApiKey, saveApiKeys, setActiveApiKeyId, clearError, setCurrentQuiz, clearCurrentQuiz } = quizSlice.actions;
 export default quizSlice.reducer;
