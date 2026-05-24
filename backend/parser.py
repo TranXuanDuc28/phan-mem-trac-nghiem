@@ -91,6 +91,49 @@ def is_red(color):
     color = color.upper()
     return color.startswith("FF") or color.startswith("EE") or color.startswith("DD") or color == "RED"
 
+def split_paragraph_content(p_text: str):
+    # 1. First split by any embedded "Câu [số]"
+    sub_parts = re.split(r'(?=\b(?:C\u00e2u|C\u00c2U|c\u00e2u)\s*\d+[\.:\s])', p_text)
+    
+    final_parts = []
+    for part in sub_parts:
+        part = part.strip()
+        if not part:
+            continue
+            
+        # 2. Split by inline options: A., B., C., D. (with space or <correct> tag before them)
+        pos_to_split = []
+        for m in re.finditer(r'(?<=\s)([A-Da-d])[\.\)]|(?<=<correct>)([A-Da-d])[\.\)]', part):
+            start_idx = m.start()
+            snippet = part[start_idx:start_idx+15]
+            
+            letter = (m.group(1) or m.group(2) or '').upper()
+            if letter == 'C' and re.search(r'^C\.\s*M\u00e1c', snippet, re.IGNORECASE):
+                continue
+            snippet_clean = re.sub(r'</?correct>', '', snippet)
+            if re.match(r'^[A-Da-d][\.\)]\s*M\u00e1c', snippet_clean, re.IGNORECASE):
+                continue
+            
+            split_pos = start_idx
+            if part[max(0, start_idx-9):start_idx] == "<correct>":
+                split_pos = start_idx - 9
+            pos_to_split.append(split_pos)
+            
+        if not pos_to_split:
+            final_parts.append(part)
+        else:
+            last_pos = 0
+            for pos in pos_to_split:
+                chunk = part[last_pos:pos].strip()
+                if chunk:
+                    final_parts.append(chunk)
+                last_pos = pos
+            chunk = part[last_pos:].strip()
+            if chunk:
+                final_parts.append(chunk)
+                
+    return final_parts
+
 def extract_docx_quiz(file_path: str):
     """
     Parses a DOCX file directly and extracts multiple choice questions,
@@ -133,7 +176,11 @@ def extract_docx_quiz(file_path: str):
                 # Preprocess inline options with missing spaces
                 # e.g., "giai đoạnB. 2 giai đoạn" -> "giai đoạn B. 2 giai đoạn"
                 p_text = re.sub(r'([^\s\.])([A-Da-d][\.\)])', r'\1 \2', p_text)
-                doc_paragraphs.append(p_text)
+                
+                # Split paragraph content if it contains inline questions or options
+                split_parts = split_paragraph_content(p_text)
+                for part in split_parts:
+                    doc_paragraphs.append(part)
                 
         raw_questions = []
         current_q = None
