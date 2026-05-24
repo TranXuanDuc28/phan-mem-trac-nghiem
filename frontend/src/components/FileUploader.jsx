@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchSlides, uploadSlide, generateQuiz, fetchQuizzes } from '../store/quizSlice';
+import { fetchSlides, uploadSlide, generateQuiz, fetchQuizzes, importQuizDocx } from '../store/quizSlice';
 import { Upload, FileText, Settings2, Sparkles, BookOpen, AlertTriangle, Loader2 } from 'lucide-react';
 
 export default function FileUploader({ onQuizSelected }) {
@@ -58,18 +58,29 @@ export default function FileUploader({ onQuizSelected }) {
   const validateAndUpload = (file) => {
     if (!file) return;
     const ext = file.name.split('.').pop().toLowerCase();
-    if (ext !== 'pptx' && ext !== 'pdf') {
-      setUploadError('Chỉ chấp nhận file PowerPoint (.pptx) và PDF (.pdf)');
+    if (ext !== 'pptx' && ext !== 'pdf' && ext !== 'docx') {
+      setUploadError('Chỉ chấp nhận file PowerPoint (.pptx), PDF (.pdf) hoặc Word (.docx)');
       return;
     }
-    dispatch(uploadSlide({ file, creator }))
-      .unwrap()
-      .then((newSlide) => {
-        setSelectedSlideId(newSlide.id.toString());
-      })
-      .catch((err) => {
-        setUploadError(err);
-      });
+    if (ext === 'docx') {
+      dispatch(importQuizDocx({ file, creator }))
+        .unwrap()
+        .then((newQuiz) => {
+          onQuizSelected(newQuiz);
+        })
+        .catch((err) => {
+          setUploadError(err);
+        });
+    } else {
+      dispatch(uploadSlide({ file, creator }))
+        .unwrap()
+        .then((newSlide) => {
+          setSelectedSlideId(newSlide.id.toString());
+        })
+        .catch((err) => {
+          setUploadError(err);
+        });
+    }
   };
 
   const handleGenerate = (e) => {
@@ -106,8 +117,8 @@ export default function FileUploader({ onQuizSelected }) {
                 <Upload size={20} />
               </div>
               <div>
-                <h3 className="font-semibold fs-5 text-slate-100 m-0">Tải lên tài liệu slide</h3>
-                <p className="text-slate-400 small m-0">Tải lên file bài giảng PPTX hoặc PDF mới</p>
+                <h3 className="font-semibold fs-5 text-slate-100 m-0">Tải lên tài liệu</h3>
+                <p className="text-slate-400 small m-0">Tải file bài giảng (PPTX/PDF) hoặc đề Word (DOCX)</p>
               </div>
             </div>
 
@@ -142,14 +153,14 @@ export default function FileUploader({ onQuizSelected }) {
               <input
                 type="file"
                 onChange={handleFileSelect}
-                accept=".pptx, .pdf"
+                accept=".pptx, .pdf, .docx"
                 className="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer"
                 disabled={loading || generating}
               />
               {loading ? (
                 <div className="d-flex flex-column align-items-center justify-content-center py-3 gap-2">
                   <Loader2 className="animate-spin text-indigo-500" size={32} />
-                  <p className="text-sm text-slate-300 m-0">Đang đọc slide và trích xuất dữ liệu...</p>
+                  <p className="text-sm text-slate-300 m-0">Đang đọc tài liệu và lưu dữ liệu...</p>
                 </div>
               ) : (
                 <div className="d-flex flex-column gap-2">
@@ -159,7 +170,7 @@ export default function FileUploader({ onQuizSelected }) {
                   <div className="text-sm">
                     <span className="text-indigo-400 font-semibold">Click để chọn</span> hoặc kéo thả file vào đây
                   </div>
-                  <p className="text-slate-500 small m-0" style={{ fontSize: '12px' }}>Hỗ trợ định dạng .pptx và .pdf</p>
+                  <p className="text-slate-500 small m-0" style={{ fontSize: '12px' }}>Hỗ trợ .pptx, .pdf (sinh bằng AI) hoặc .docx (nhập trực tiếp)</p>
                 </div>
               )}
             </div>

@@ -12,12 +12,12 @@ from sqlalchemy import text
 try:
     from backend.database import engine, get_db, Base
     from backend.models import Slide, Quiz, QuizAttempt
-    from backend.parser import extract_slide_content
+    from backend.parser import extract_slide_content, extract_docx_quiz
     from backend.generator import generate_quiz_from_slides
 except ImportError:
     from database import engine, get_db, Base
     from models import Slide, Quiz, QuizAttempt
-    from parser import extract_slide_content
+    from parser import extract_slide_content, extract_docx_quiz
     from generator import generate_quiz_from_slides
 
 # Initialize DB tables (creates tables if they don't exist)
@@ -155,6 +155,62 @@ def upload_slide(
         if os.path.exists(file_path):
             os.remove(file_path)
         raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý file: {str(e)}")
+
+@app.post("/api/upload-quiz", response_model=QuizResponse)
+def upload_quiz(
+    file: UploadFile = File(...),
+    creator: str = Form("Ẩn danh"),
+    db: Session = Depends(get_db)
+):
+    # Validate file extension
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext != ".docx":
+        raise HTTPException(status_code=400, detail="Chỉ hỗ trợ nhập trực tiếp file .docx trắc nghiệm.")
+    
+    # Save file to upload directory
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # Parse DOCX questions directly
+        questions = extract_docx_quiz(file_path)
+        
+        if not questions:
+            raise ValueError("Không tìm thấy câu hỏi trắc nghiệm hợp lệ nào trong file Word.")
+            
+        # Save source file as a Slide record
+        extracted_content = [{"slide_num": 1, "content": f"Đề trắc nghiệm tự động nhập từ file Word: {file.filename}"}]
+        db_slide = Slide(
+            filename=file.filename,
+            file_path=file_path,
+            content_text=extracted_content,
+            creator=creator
+        )
+        db.add(db_slide)
+        db.commit()
+        db.refresh(db_slide)
+        
+        # Create Quiz record
+        title = f"Trắc nghiệm: {os.path.splitext(file.filename)[0]}"
+        db_quiz = Quiz(
+            slide_id=db_slide.id,
+            title=title,
+            difficulty="Tự động (Word)",
+            num_questions=len(questions),
+            questions=questions,
+            creator=creator
+        )
+        db.add(db_quiz)
+        db.commit()
+        db.refresh(db_quiz)
+        
+        return db_quiz
+    except Exception as e:
+        # Clean up file if error occurs
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý file Word: {str(e)}")
 
 # --- Quiz Endpoints ---
 

@@ -73,6 +73,22 @@ export const saveAttempt = createAsyncThunk('quiz/saveAttempt', async (attemptDa
   }
 });
 
+export const importQuizDocx = createAsyncThunk('quiz/importQuizDocx', async ({ file, creator }, { rejectWithValue }) => {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('creator', creator || 'Ẩn danh');
+    const response = await api.post('/api/upload-quiz', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.detail || 'Lỗi khi nhập file trắc nghiệm Word.');
+  }
+});
+
 const initialState = {
   apiKey: localStorage.getItem('gemini_api_key') || '',
   slides: [],
@@ -173,6 +189,20 @@ const quizSlice = createSlice({
       // Save Attempt
       .addCase(saveAttempt.fulfilled, (state, action) => {
         state.attempts.unshift(action.payload);
+      })
+      // Import Quiz Docx
+      .addCase(importQuizDocx.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(importQuizDocx.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentQuiz = action.payload;
+        state.quizzes.unshift(action.payload);
+      })
+      .addCase(importQuizDocx.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });
