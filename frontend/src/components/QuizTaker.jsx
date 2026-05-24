@@ -3,12 +3,21 @@ import { Timer, ArrowLeft, ArrowRight, CheckCircle, HelpCircle } from 'lucide-re
 
 export default function QuizTaker({ quiz, onFinished, onCancel }) {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState({}); // Stores key-value: { questionIndex: selectedOptionString }
-  const [checkedQuestions, setCheckedQuestions] = useState({}); // Stores key-value: { questionIndex: boolean }
+  const [answers, setAnswers] = useState({}); // Stores key-value: { originalQuestionIndex: selectedOptionString }
+  const [checkedQuestions, setCheckedQuestions] = useState({}); // Stores key-value: { originalQuestionIndex: boolean }
   const [timeSpent, setTimeSpent] = useState(0); // in seconds
 
-  const questions = quiz.questions;
-  const currentQuestion = questions[currentIdx];
+  // Shuffle questions on mount and preserve their original indices
+  const [shuffledQuestions] = useState(() => {
+    const arr = quiz.questions.map((q, idx) => ({ ...q, originalIdx: idx }));
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  });
+
+  const currentQuestion = shuffledQuestions[currentIdx];
 
   // Timer effect
   useEffect(() => {
@@ -25,10 +34,11 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
   };
 
   const handleSelectOption = (option) => {
-    if (checkedQuestions[currentIdx]) return; // Lock options once checked
+    const originalIdx = currentQuestion.originalIdx;
+    if (checkedQuestions[originalIdx]) return; // Lock options once checked
     setAnswers((prev) => ({
       ...prev,
-      [currentIdx]: option
+      [originalIdx]: option
     }));
   };
 
@@ -37,15 +47,15 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
   };
 
   const handleNext = () => {
-    if (currentIdx < questions.length - 1) {
+    if (currentIdx < shuffledQuestions.length - 1) {
       setCurrentIdx(currentIdx + 1);
     }
   };
 
   const handleSubmit = () => {
-    // Calculate score
+    // Calculate score using the original quiz questions structure
     let score = 0;
-    questions.forEach((q, idx) => {
+    quiz.questions.forEach((q, idx) => {
       if (answers[idx] === q.correct_answer) {
         score++;
       }
@@ -54,13 +64,13 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
     onFinished({
       quiz_id: quiz.id,
       score,
-      total_questions: questions.length,
+      total_questions: quiz.questions.length,
       time_spent: timeSpent,
-      answers // mapped as { "0": "User Option A", "1": "User Option B" }
+      answers // mapped as { "originalIdx": "User Option" }
     });
   };
 
-  const progressPercent = ((currentIdx + 1) / questions.length) * 100;
+  const progressPercent = ((currentIdx + 1) / shuffledQuestions.length) * 100;
 
   return (
     <div className="max-w-3xl mx-auto card glass-panel p-4 p-md-5">
@@ -81,7 +91,7 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
       {/* Progress indicators */}
       <div className="mb-4">
         <div className="d-flex justify-content-between small text-slate-400 mb-2 fw-semibold" style={{ fontSize: '12px' }}>
-          <span>Câu {currentIdx + 1} của {questions.length}</span>
+          <span>Câu {currentIdx + 1} của {shuffledQuestions.length}</span>
           <span>{Math.round(progressPercent)}% Hoàn thành</span>
         </div>
         <div className="w-100 bg-slate-950 h-2 rounded-pill overflow-hidden border border-slate-900" style={{ height: '8px' }}>
@@ -106,8 +116,9 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
         {/* Options list */}
         <div className="d-flex flex-column gap-3 mt-4 ps-md-4">
           {currentQuestion.options.map((option, idx) => {
-            const isSelected = answers[currentIdx] === option;
-            const isChecked = checkedQuestions[currentIdx];
+            const originalIdx = currentQuestion.originalIdx;
+            const isSelected = answers[originalIdx] === option;
+            const isChecked = checkedQuestions[originalIdx];
             const isCorrect = option === currentQuestion.correct_answer;
             const letter = String.fromCharCode(65 + idx); // A, B, C, D
 
@@ -143,10 +154,10 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
         </div>
 
         {/* Check Answer Button */}
-        {!checkedQuestions[currentIdx] && answers[currentIdx] && (
+        {!checkedQuestions[currentQuestion.originalIdx] && answers[currentQuestion.originalIdx] && (
           <div className="ps-md-4 mt-3">
             <button
-              onClick={() => setCheckedQuestions((prev) => ({ ...prev, [currentIdx]: true }))}
+              onClick={() => setCheckedQuestions((prev) => ({ ...prev, [currentQuestion.originalIdx]: true }))}
               className="btn btn-warning w-100 py-2.5 fw-bold animate-fade-in shadow-sm"
               style={{ background: '#f59e0b', borderColor: '#f59e0b', color: '#000' }}
             >
@@ -156,7 +167,7 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
         )}
 
         {/* Detailed Explanation */}
-        {checkedQuestions[currentIdx] && (
+        {checkedQuestions[currentQuestion.originalIdx] && (
           <div className="ps-md-4 mt-4">
             <div className="p-4 rounded-3 bg-slate-950 border border-slate-800 animate-fade-in">
               <h4 className="fw-semibold text-indigo-400 mb-2 h6" style={{ fontSize: '14px' }}>💡 Giải thích chi tiết:</h4>
@@ -193,12 +204,12 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
             <ArrowLeft size={16} /> <span className="d-none d-sm-inline">Câu trước</span>
           </button>
 
-          {currentIdx === questions.length - 1 ? (
+          {currentIdx === shuffledQuestions.length - 1 ? (
             <button
               onClick={handleSubmit}
-              disabled={Object.keys(answers).length < questions.length}
+              disabled={Object.keys(answers).length < shuffledQuestions.length}
               className="btn btn-success d-flex align-items-center gap-1.5"
-              style={{ opacity: Object.keys(answers).length < questions.length ? 0.5 : 1 }}
+              style={{ opacity: Object.keys(answers).length < shuffledQuestions.length ? 0.5 : 1 }}
             >
               <CheckCircle size={16} /> Nộp bài
             </button>
@@ -214,9 +225,9 @@ export default function QuizTaker({ quiz, onFinished, onCancel }) {
       </div>
       
       {/* Warning if not all questions answered */}
-      {currentIdx === questions.length - 1 && Object.keys(answers).length < questions.length && (
+      {currentIdx === shuffledQuestions.length - 1 && Object.keys(answers).length < shuffledQuestions.length && (
         <p className="text-end small text-amber-500 mt-2 fw-medium" style={{ fontSize: '12px' }}>
-          * Bạn phải trả lời tất cả các câu hỏi để có thể nộp bài (Còn thiếu {questions.length - Object.keys(answers).length} câu).
+          * Bạn phải trả lời tất cả các câu hỏi để có thể nộp bài (Còn thiếu {shuffledQuestions.length - Object.keys(answers).length} câu).
         </p>
       )}
     </div>
