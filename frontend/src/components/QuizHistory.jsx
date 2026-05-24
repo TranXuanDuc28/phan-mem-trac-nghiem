@@ -76,70 +76,135 @@ export default function QuizHistory({ onQuizSelected, onViewAttempt }) {
           Chưa làm bài trắc nghiệm nào. Hãy tải lên slide để bắt đầu luyện tập!
         </div>
       ) : (
-        <div className="table-responsive">
-          <table className="table m-0">
-            <thead>
-              <tr>
-                <th>Đề trắc nghiệm</th>
-                <th className="text-center">Điểm số</th>
-                <th className="text-center">Ngày làm</th>
-                <th className="text-end">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {attempts.map((attempt) => {
-                const quizTitle = getQuizTitle(attempt.quiz_id);
-                const quizDiff = getQuizDifficulty(attempt.quiz_id);
-                const scorePercent = Math.round((attempt.score / attempt.total_questions) * 100);
+        <div>
+          {/* Desktop View */}
+          <div className="d-none d-md-block table-responsive">
+            <table className="table m-0">
+              <thead>
+                <tr>
+                  <th>Đề trắc nghiệm</th>
+                  <th className="text-center">Điểm số</th>
+                  <th className="text-center">Ngày làm</th>
+                  <th className="text-end">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attempts.map((attempt) => {
+                  const quizTitle = getQuizTitle(attempt.quiz_id);
+                  const quizDiff = getQuizDifficulty(attempt.quiz_id);
+                  const scorePercent = Math.round((attempt.score / attempt.total_questions) * 100);
 
-                return (
-                  <tr key={attempt.id}>
-                    <td className="text-slate-200" style={{ maxWidth: '180px' }}>
-                      <div className="text-line-clamp-1 font-medium" title={quizTitle}>
-                        {quizTitle}
-                      </div>
-                      <span className="small text-slate-500" style={{ fontSize: '10px' }}>
-                        Thời gian: {formatTime(attempt.time_spent)}
+                  return (
+                    <tr key={attempt.id}>
+                      <td className="text-slate-200" style={{ maxWidth: '180px' }}>
+                        <div className="text-line-clamp-1 font-medium" title={quizTitle}>
+                          {quizTitle}
+                        </div>
+                        <span className="small text-slate-500" style={{ fontSize: '10px' }}>
+                          Thời gian: {formatTime(attempt.time_spent)}
+                        </span>
+                      </td>
+                      <td className="text-center text-slate-200">
+                        <div className="d-flex align-items-center justify-content-center gap-1.5">
+                          <CheckCircle2 size={14} className={scorePercent >= 80 ? 'text-emerald-400' : scorePercent >= 50 ? 'text-amber-500' : 'text-rose-500'} />
+                          <span className="fw-semibold">{attempt.score}/{attempt.total_questions}</span>
+                        </div>
+                        <div className="text-slate-500" style={{ fontSize: '10px' }}>({scorePercent}%)</div>
+                      </td>
+                      <td className="text-center text-slate-400" style={{ fontSize: '12px' }}>
+                        <div className="d-flex align-items-center justify-content-center gap-1">
+                          <Calendar size={12} className="text-slate-500" />
+                          <span>{formatDate(attempt.completed_at).split(' ')[0]}</span>
+                        </div>
+                      </td>
+                      <td className="text-end">
+                        {quizTitle !== 'Đề trắc nghiệm đã bị xóa' && (
+                          <div className="d-flex justify-content-end gap-1.5 flex-wrap">
+                            <button
+                              onClick={() => onViewAttempt && onViewAttempt(attempt)}
+                              className="btn btn-outline-info py-1 px-2.5 d-inline-flex align-items-center gap-1"
+                              style={{ fontSize: '11px', borderColor: 'rgba(13, 202, 240, 0.4)', color: '#0dcaf0' }}
+                            >
+                              <BookOpen size={10} /> Xem lại
+                            </button>
+                            <button
+                              onClick={() => handleRetake(attempt.quiz_id)}
+                              className="btn btn-outline-primary py-1 px-2.5 d-inline-flex align-items-center gap-1"
+                              style={{ fontSize: '11px' }}
+                            >
+                              <Play size={10} /> Làm lại
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile View */}
+          <div className="d-block d-md-none d-flex flex-column gap-3">
+            {attempts.map((attempt) => {
+              const quizTitle = getQuizTitle(attempt.quiz_id);
+              const quizDiff = getQuizDifficulty(attempt.quiz_id);
+              const scorePercent = Math.round((attempt.score / attempt.total_questions) * 100);
+
+              return (
+                <div key={attempt.id} className="p-3 rounded-3 bg-slate-950/40 border border-slate-800/80 d-flex flex-column gap-2">
+                  <div className="d-flex justify-content-between align-items-start gap-2">
+                    <h4 className="fs-6 fw-bold text-slate-100 m-0 leading-relaxed" style={{ wordBreak: 'break-word', fontSize: '14px' }}>
+                      {quizTitle}
+                    </h4>
+                    {quizDiff && (
+                      <span className="badge bg-indigo-500/10 text-indigo-400 font-semibold shrink-0" style={{ fontSize: '10px' }}>
+                        {quizDiff}
                       </span>
-                    </td>
-                    <td className="text-center text-slate-200">
-                      <div className="d-flex align-items-center justify-content-center gap-1.5">
-                        <CheckCircle2 size={14} className={scorePercent >= 80 ? 'text-emerald-400' : scorePercent >= 50 ? 'text-amber-500' : 'text-rose-500'} />
-                        <span className="fw-semibold">{attempt.score}/{attempt.total_questions}</span>
+                    )}
+                  </div>
+
+                  <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mt-1">
+                    <div className="d-flex flex-column gap-1 text-slate-400 small" style={{ fontSize: '11px' }}>
+                      <div className="d-flex align-items-center gap-1.5">
+                        <CheckCircle2 size={12} className={scorePercent >= 80 ? 'text-emerald-400' : scorePercent >= 50 ? 'text-amber-500' : 'text-rose-500'} />
+                        <span>Kết quả: <strong>{attempt.score}/{attempt.total_questions}</strong> ({scorePercent}%)</span>
                       </div>
-                      <div className="text-slate-500" style={{ fontSize: '10px' }}>({scorePercent}%)</div>
-                    </td>
-                    <td className="text-center text-slate-400" style={{ fontSize: '12px' }}>
-                      <div className="d-flex align-items-center justify-content-center gap-1">
+                      <div className="d-flex align-items-center gap-1.5">
+                        <Clock size={12} className="text-slate-500" />
+                        <span>Thời gian: {formatTime(attempt.time_spent)}</span>
+                      </div>
+                      <div className="d-flex align-items-center gap-1.5">
                         <Calendar size={12} className="text-slate-500" />
-                        <span>{formatDate(attempt.completed_at).split(' ')[0]}</span>
+                        <span>Làm lúc: {formatDate(attempt.completed_at)}</span>
                       </div>
-                    </td>
-                    <td className="text-end">
+                    </div>
+
+                    <div className="d-flex align-items-center gap-2 ms-auto">
                       {quizTitle !== 'Đề trắc nghiệm đã bị xóa' && (
-                        <div className="d-flex justify-content-end gap-1.5 flex-wrap">
+                        <div className="d-flex align-items-center gap-1.5">
                           <button
                             onClick={() => onViewAttempt && onViewAttempt(attempt)}
-                            className="btn btn-outline-info py-1 px-2.5 d-inline-flex align-items-center gap-1"
+                            className="btn btn-outline-info py-1 px-2 d-inline-flex align-items-center gap-1"
                             style={{ fontSize: '11px', borderColor: 'rgba(13, 202, 240, 0.4)', color: '#0dcaf0' }}
                           >
                             <BookOpen size={10} /> Xem lại
                           </button>
                           <button
                             onClick={() => handleRetake(attempt.quiz_id)}
-                            className="btn btn-outline-primary py-1 px-2.5 d-inline-flex align-items-center gap-1"
+                            className="btn btn-outline-primary py-1 px-2 d-inline-flex align-items-center gap-1"
                             style={{ fontSize: '11px' }}
                           >
                             <Play size={10} /> Làm lại
                           </button>
                         </div>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
