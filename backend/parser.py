@@ -150,23 +150,24 @@ def split_paragraph_content(p_text: str):
         if not part:
             continue
             
-        # 2. Split by inline options: A., B., C., D. (with space or <correct> tag before them)
+        # 2. Find all matches of option prefixes, possibly preceded by <correct> tag
+        pattern = r'(?:<correct>\s*)?\b([A-Da-d])[\.\)]'
+        matches = list(re.finditer(pattern, part))
+        
         pos_to_split = []
-        for m in re.finditer(r'(?<=\s)([A-Da-d])[\.\)]|(?<=<correct>)([A-Da-d])[\.\)]', part):
+        for m in matches:
             start_idx = m.start()
-            snippet = part[start_idx:start_idx+15]
+            letter = m.group(1).upper()
             
-            letter = (m.group(1) or m.group(2) or '').upper()
-            if letter == 'C' and re.search(r'^C\.\s*M\u00e1c', snippet, re.IGNORECASE):
-                continue
+            # Avoid matching names like C. Mác
+            snippet = part[start_idx:start_idx+20]
             snippet_clean = re.sub(r'</?correct>', '', snippet)
+            if letter == 'C' and re.match(r'^C\.\s*M\u00e1c', snippet_clean, re.IGNORECASE):
+                continue
             if re.match(r'^[A-Da-d][\.\)]\s*M\u00e1c', snippet_clean, re.IGNORECASE):
                 continue
-            
-            split_pos = start_idx
-            if part[max(0, start_idx-9):start_idx] == "<correct>":
-                split_pos = start_idx - 9
-            pos_to_split.append(split_pos)
+                
+            pos_to_split.append(start_idx)
             
         if not pos_to_split:
             final_parts.append(part)
@@ -217,7 +218,7 @@ def extract_docx_quiz(file_path: str):
             if p_text:
                 # Preprocess inline options with missing spaces
                 # e.g., "giai đoạnB. 2 giai đoạn" -> "giai đoạn B. 2 giai đoạn"
-                p_text = re.sub(r'([^\s\.])([A-Da-d][\.\)])', r'\1 \2', p_text)
+                p_text = re.sub(r'([^\s\.\>])([A-Da-d][\.\)])', r'\1 \2', p_text)
                 
                 # Split paragraph content if it contains inline questions or options
                 split_parts = split_paragraph_content(p_text)
