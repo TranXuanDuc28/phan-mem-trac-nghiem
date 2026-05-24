@@ -243,6 +243,20 @@ def get_quiz(quiz_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Không tìm thấy bài trắc nghiệm.")
     return quiz
 
+@app.delete("/api/quizzes/{quiz_id}")
+def delete_quiz(quiz_id: int, password: str, db: Session = Depends(get_db)):
+    expected_password = os.getenv("QUIZ_DELETE_PASSWORD", "tracnghiem2026")
+    if password != expected_password:
+        raise HTTPException(status_code=403, detail="Mật mã xác nhận xóa không chính xác.")
+        
+    quiz = db.query(Quiz).filter(Quiz.id == quiz_id).first()
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Không tìm thấy đề trắc nghiệm cần xóa.")
+        
+    db.delete(quiz)
+    db.commit()
+    return {"message": "Đã xóa đề trắc nghiệm thành công."}
+
 @app.post("/api/generate", response_model=QuizResponse)
 def generate_quiz(
     request: QuizGenerateRequest,

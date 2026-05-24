@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchQuizzes, setCurrentQuiz } from '../store/quizSlice';
-import { BookOpen, User, Play, Award, Calendar } from 'lucide-react';
+import { fetchQuizzes, setCurrentQuiz, deleteQuiz } from '../store/quizSlice';
+import { BookOpen, User, Play, Award, Calendar, Trash2 } from 'lucide-react';
 
 export default function QuizLibrary({ onQuizSelected }) {
   const dispatch = useDispatch();
@@ -14,6 +14,24 @@ export default function QuizLibrary({ onQuizSelected }) {
   const handleStartQuiz = (quiz) => {
     dispatch(setCurrentQuiz(quiz));
     onQuizSelected(quiz);
+  };
+
+  const handleDeleteQuiz = (quizId, quizTitle) => {
+    const password = prompt(`Nhập mật mã để xóa đề trắc nghiệm "${quizTitle}":`);
+    if (password === null) return; // Hủy
+    if (!password.trim()) {
+      alert("Vui lòng nhập mật mã để xác nhận xóa.");
+      return;
+    }
+
+    dispatch(deleteQuiz({ quizId, password }))
+      .unwrap()
+      .then((res) => {
+        alert(res.message || "Xóa đề trắc nghiệm thành công.");
+      })
+      .catch((err) => {
+        alert(err || "Lỗi khi xóa đề trắc nghiệm.");
+      });
   };
 
   const formatDate = (dateStr) => {
@@ -102,13 +120,23 @@ export default function QuizLibrary({ onQuizSelected }) {
                       </span>
                     </td>
                     <td className="text-end">
-                      <button
-                        onClick={() => handleStartQuiz(quiz)}
-                        className="btn btn-primary btn-sm py-1 px-2.5 d-inline-flex align-items-center gap-1"
-                        style={{ fontSize: '11px' }}
-                      >
-                        <Play size={10} /> Vào thi
-                      </button>
+                      <div className="d-inline-flex gap-2">
+                        <button
+                          onClick={() => handleStartQuiz(quiz)}
+                          className="btn btn-primary btn-sm py-1 px-2.5 d-inline-flex align-items-center gap-1"
+                          style={{ fontSize: '11px' }}
+                        >
+                          <Play size={10} /> Vào thi
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuiz(quiz.id, quiz.title)}
+                          className="btn btn-danger btn-sm py-1 px-2 d-inline-flex align-items-center gap-1"
+                          style={{ fontSize: '11px' }}
+                          title="Xóa đề thi này"
+                        >
+                          <Trash2 size={10} /> Xóa
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -150,16 +178,23 @@ export default function QuizLibrary({ onQuizSelected }) {
                     </div>
                   </div>
                   
-                  <div className="d-flex align-items-center gap-2.5 ms-auto">
-                    <span className="text-slate-300 small fw-medium" style={{ fontSize: '12px' }}>
+                  <div className="d-flex align-items-center gap-2 ms-auto">
+                    <span className="text-slate-300 small fw-medium me-1" style={{ fontSize: '12px' }}>
                       {quiz.num_questions} câu
                     </span>
                     <button
                       onClick={() => handleStartQuiz(quiz)}
-                      className="btn btn-primary py-1.5 px-3 d-inline-flex align-items-center gap-1"
+                      className="btn btn-primary py-1.5 px-2.5 d-inline-flex align-items-center gap-1"
                       style={{ fontSize: '11px' }}
                     >
                       <Play size={10} /> Vào thi
+                    </button>
+                    <button
+                      onClick={() => handleDeleteQuiz(quiz.id, quiz.title)}
+                      className="btn btn-danger py-1.5 px-2 d-inline-flex align-items-center gap-1"
+                      style={{ fontSize: '11px' }}
+                    >
+                      <Trash2 size={10} /> Xóa
                     </button>
                   </div>
                 </div>

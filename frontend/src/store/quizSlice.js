@@ -92,6 +92,15 @@ export const importQuizDocx = createAsyncThunk('quiz/importQuizDocx', async ({ f
   }
 });
 
+export const deleteQuiz = createAsyncThunk('quiz/deleteQuiz', async ({ quizId, password }, { rejectWithValue }) => {
+  try {
+    const response = await api.delete(`/api/quizzes/${quizId}?password=${encodeURIComponent(password)}`);
+    return { quizId, message: response.data?.message };
+  } catch (error) {
+    return rejectWithValue(error.response?.data?.detail || 'Lỗi khi xóa đề trắc nghiệm.');
+  }
+});
+
 // Parse saved keys or migrate old single key
 const getInitialKeys = () => {
   try {
@@ -258,6 +267,19 @@ const quizSlice = createSlice({
         state.quizzes.unshift(action.payload);
       })
       .addCase(importQuizDocx.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Delete Quiz
+      .addCase(deleteQuiz.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteQuiz.fulfilled, (state, action) => {
+        state.loading = false;
+        state.quizzes = state.quizzes.filter((q) => q.id !== action.payload.quizId);
+      })
+      .addCase(deleteQuiz.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
