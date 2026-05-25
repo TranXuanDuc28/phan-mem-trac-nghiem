@@ -11,11 +11,12 @@ export const fetchSlides = createAsyncThunk('quiz/fetchSlides', async (_, { reje
   }
 });
 
-export const uploadSlide = createAsyncThunk('quiz/uploadSlide', async ({ file, creator }, { rejectWithValue }) => {
+export const uploadSlide = createAsyncThunk('quiz/uploadSlide', async ({ file, creator, subject }, { rejectWithValue }) => {
   try {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('creator', creator || 'Ẩn danh');
+    formData.append('subject', subject || 'Chủ nghĩa xã hội khoa học');
     const response = await api.post('/api/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -73,13 +74,14 @@ export const saveAttempt = createAsyncThunk('quiz/saveAttempt', async (attemptDa
   }
 });
 
-export const importQuizDocx = createAsyncThunk('quiz/importQuizDocx', async ({ file, creator }, { getState, rejectWithValue }) => {
+export const importQuizDocx = createAsyncThunk('quiz/importQuizDocx', async ({ file, creator, subject }, { getState, rejectWithValue }) => {
   try {
     const state = getState();
     const apiKey = state.quiz?.apiKey || '';
     const formData = new FormData();
     formData.append('file', file);
     formData.append('creator', creator || 'Ẩn danh');
+    formData.append('subject', subject || 'Chủ nghĩa xã hội khoa học');
     const response = await api.post('/api/upload-quiz', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',

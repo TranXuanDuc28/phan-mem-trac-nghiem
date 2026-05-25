@@ -13,6 +13,8 @@ export default function FileUploader({ onQuizSelected }) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [creator, setCreator] = useState(localStorage.getItem('slide_creator_name') || 'Ẩn danh');
+  const [subject, setSubject] = useState(localStorage.getItem('slide_subject_name') || 'Chủ nghĩa xã hội khoa học');
+  const [customSubject, setCustomSubject] = useState('');
   
   // Custom range selection states
   const [useCustomRange, setUseCustomRange] = useState(false);
@@ -62,8 +64,11 @@ export default function FileUploader({ onQuizSelected }) {
       setUploadError('Chỉ chấp nhận file PowerPoint (.pptx), PDF (.pdf) hoặc Word (.docx)');
       return;
     }
+    
+    const activeSubject = subject === 'Khác' ? (customSubject.trim() || 'Khác') : subject;
+    
     if (ext === 'docx') {
-      dispatch(importQuizDocx({ file, creator }))
+      dispatch(importQuizDocx({ file, creator, subject: activeSubject }))
         .unwrap()
         .then((newQuiz) => {
           onQuizSelected(newQuiz);
@@ -72,7 +77,7 @@ export default function FileUploader({ onQuizSelected }) {
           setUploadError(err);
         });
     } else {
-      dispatch(uploadSlide({ file, creator }))
+      dispatch(uploadSlide({ file, creator, subject: activeSubject }))
         .unwrap()
         .then((newSlide) => {
           setSelectedSlideId(newSlide.id.toString());
@@ -122,23 +127,65 @@ export default function FileUploader({ onQuizSelected }) {
               </div>
             </div>
 
-            <div className="mb-3">
-              <label className="d-block small text-slate-400 mb-2 uppercase tracking-wider font-semibold" style={{ fontSize: '11px' }}>
-                Tên người tạo / Tác giả
-              </label>
-              <input
-                type="text"
-                value={creator}
-                onChange={(e) => {
-                  setCreator(e.target.value);
-                  localStorage.setItem('slide_creator_name', e.target.value);
-                }}
-                placeholder="Nhập tên của bạn..."
-                className="form-control py-2"
-                style={{ fontSize: '13px' }}
-                disabled={loading || generating}
-              />
+            <div className="row g-2 mb-3">
+              <div className="col-sm-6">
+                <label className="d-block small text-slate-400 mb-2 uppercase tracking-wider font-semibold" style={{ fontSize: '11px' }}>
+                  Tên người tạo / Tác giả
+                </label>
+                <input
+                  type="text"
+                  value={creator}
+                  onChange={(e) => {
+                    setCreator(e.target.value);
+                    localStorage.setItem('slide_creator_name', e.target.value);
+                  }}
+                  placeholder="Nhập tên của bạn..."
+                  className="form-control py-2"
+                  style={{ fontSize: '13px' }}
+                  disabled={loading || generating}
+                />
+              </div>
+
+              <div className="col-sm-6">
+                <label className="d-block small text-slate-400 mb-2 uppercase tracking-wider font-semibold" style={{ fontSize: '11px' }}>
+                  Danh mục Môn học
+                </label>
+                <select
+                  value={subject}
+                  onChange={(e) => {
+                    setSubject(e.target.value);
+                    localStorage.setItem('slide_subject_name', e.target.value);
+                  }}
+                  className="form-select py-2"
+                  style={{ fontSize: '13px' }}
+                  disabled={loading || generating}
+                >
+                  <option value="Chủ nghĩa xã hội khoa học">Chủ nghĩa xã hội khoa học</option>
+                  <option value="Triết học Mác - Lênin">Triết học Mác - Lênin</option>
+                  <option value="Kinh tế chính trị Mác - Lênin">Kinh tế chính trị Mác - Lênin</option>
+                  <option value="Lịch sử Đảng Cộng sản Việt Nam">Lịch sử Đảng Cộng sản Việt Nam</option>
+                  <option value="Tư tưởng Hồ Chí Minh">Tư tưởng Hồ Chí Minh</option>
+                  <option value="Khác">Môn học khác (Tự nhập)</option>
+                </select>
+              </div>
             </div>
+
+            {subject === 'Khác' && (
+              <div className="mb-3 animate-fade-in">
+                <label className="d-block small text-slate-400 mb-2 uppercase tracking-wider font-semibold" style={{ fontSize: '11px' }}>
+                  Nhập tên môn học khác
+                </label>
+                <input
+                  type="text"
+                  value={customSubject}
+                  onChange={(e) => setCustomSubject(e.target.value)}
+                  placeholder="Ví dụ: Toán cao cấp, Anh văn,..."
+                  className="form-control py-2"
+                  style={{ fontSize: '13px' }}
+                  disabled={loading || generating}
+                />
+              </div>
+            )}
 
             <div
               onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -199,7 +246,7 @@ export default function FileUploader({ onQuizSelected }) {
               >
                 {slides.map((slide) => (
                   <option key={slide.id} value={slide.id}>
-                    {slide.filename} ({slide.content_text.length} trang)
+                    {slide.filename} ({slide.subject || 'Chủ nghĩa xã hội khoa học'} - {slide.content_text.length} trang)
                   </option>
                 ))}
               </select>

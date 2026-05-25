@@ -23,7 +23,7 @@ except ImportError:
 # Initialize DB tables (creates tables if they don't exist)
 Base.metadata.create_all(bind=engine)
 
-# Migration to add creator column if not exists
+# Migration to add creator and subject columns if they do not exist
 try:
     with engine.begin() as conn:
         try:
@@ -32,6 +32,14 @@ try:
             pass
         try:
             conn.execute(text("ALTER TABLE quizzes ADD COLUMN creator VARCHAR(100)"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE slides ADD COLUMN subject VARCHAR(100) DEFAULT 'Chủ nghĩa xã hội khoa học'"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE quizzes ADD COLUMN subject VARCHAR(100) DEFAULT 'Chủ nghĩa xã hội khoa học'"))
         except Exception:
             pass
 except Exception as e:
@@ -62,6 +70,7 @@ class SlideResponse(BaseModel):
     uploaded_at: datetime
     content_text: List[Dict]
     creator: Optional[str] = "Ẩn danh"
+    subject: Optional[str] = "Chủ nghĩa xã hội khoa học"
 
     class Config:
         from_attributes = True
@@ -84,6 +93,7 @@ class QuizResponse(BaseModel):
     questions: List[Dict]
     created_at: datetime
     creator: Optional[str] = "Ẩn danh"
+    subject: Optional[str] = "Chủ nghĩa xã hội khoa học"
 
     class Config:
         from_attributes = True
@@ -122,6 +132,7 @@ def get_slides(db: Session = Depends(get_db)):
 def upload_slide(
     file: UploadFile = File(...),
     creator: str = Form("Ẩn danh"),
+    subject: str = Form("Chủ nghĩa xã hội khoa học"),
     db: Session = Depends(get_db)
 ):
     # Validate file extension
@@ -143,7 +154,8 @@ def upload_slide(
             filename=file.filename,
             file_path=file_path,
             content_text=extracted_content,
-            creator=creator
+            creator=creator,
+            subject=subject
         )
         db.add(db_slide)
         db.commit()
@@ -160,6 +172,7 @@ def upload_slide(
 def upload_quiz(
     file: UploadFile = File(...),
     creator: str = Form("Ẩn danh"),
+    subject: str = Form("Chủ nghĩa xã hội khoa học"),
     x_gemini_api_key: Optional[str] = Header(None),
     db: Session = Depends(get_db)
 ):
@@ -211,7 +224,8 @@ def upload_quiz(
             filename=file.filename,
             file_path=file_path,
             content_text=extracted_content,
-            creator=creator
+            creator=creator,
+            subject=subject
         )
         db.add(db_slide)
         db.commit()
@@ -225,7 +239,8 @@ def upload_quiz(
             difficulty="Tự động (Word)",
             num_questions=len(questions),
             questions=questions,
-            creator=creator
+            creator=creator,
+            subject=subject
         )
         db.add(db_quiz)
         db.commit()
@@ -323,7 +338,8 @@ def generate_quiz(
             difficulty=request.difficulty,
             num_questions=len(questions),
             questions=questions,
-            creator=request.creator or slide.creator or "Ẩn danh"
+            creator=request.creator or slide.creator or "Ẩn danh",
+            subject=slide.subject or "Chủ nghĩa xã hội khoa học"
         )
         db.add(db_quiz)
         db.commit()

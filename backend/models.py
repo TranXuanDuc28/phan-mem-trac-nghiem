@@ -14,6 +14,7 @@ class Slide(Base):
     file_path = Column(String(500), nullable=True)
     uploaded_at = Column(DateTime, default=datetime.utcnow)
     creator = Column(String(100), nullable=True, default="Ẩn danh")
+    subject = Column(String(100), nullable=True, default="Chủ nghĩa xã hội khoa học")
     # content_text stores slide content as a list of dicts: [{"slide_num": 1, "content": "Slide content text"}]
     content_text = Column(JSON, nullable=False)
 
@@ -29,6 +30,7 @@ class Quiz(Base):
     difficulty = Column(String(50), nullable=False)
     num_questions = Column(Integer, nullable=False)
     creator = Column(String(100), nullable=True, default="Ẩn danh")
+    subject = Column(String(100), nullable=True, default="Chủ nghĩa xã hội khoa học")
     # questions stores the generated list of questions as JSON
     # [{"question": "...", "options": ["A", "B", "C", "D"], "correct_answer": "...", "explanation": "...", "source_slide": 1}]
     questions = Column(JSON, nullable=False)
