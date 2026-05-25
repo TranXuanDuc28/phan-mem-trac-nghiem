@@ -37,13 +37,21 @@ def generate_quiz_from_slides(
         slides_text_repr += f"\n--- Trang Slide {slide['slide_num']} ---\n"
         slides_text_repr += f"{slide['content']}\n"
 
+    # Set prompt variables based on whether we want exact count or auto coverage
+    if num_questions > 0:
+        num_questions_prompt = f"gồm {num_questions} câu"
+        task_1_prompt = f"Tạo đúng {num_questions} câu hỏi trắc nghiệm chất lượng cao, bao quát các kiến thức chính trong tài liệu."
+    else:
+        num_questions_prompt = "tự động tạo số lượng câu hỏi phù hợp để bao phủ đầy đủ toàn bộ nội dung tài liệu"
+        task_1_prompt = "Tạo số lượng câu hỏi phù hợp và đầy đủ để bao quát toàn bộ các kiến thức chính và các chi tiết quan trọng trong toàn bộ tài liệu (mỗi slide có chứa nội dung kiến thức quan trọng nên được bao phủ bởi ít nhất 1-2 câu hỏi trắc nghiệm tương ứng để đảm bảo tính bao quát toàn diện)."
+
     # Build prompt
     prompt = f"""
 Bạn là một chuyên gia giáo dục và xây dựng đề thi trắc nghiệm học thuật cấp quốc gia. 
-Hãy đọc tài liệu bài giảng (slide) dưới đây và tạo ra một bộ câu hỏi trắc nghiệm (gồm {num_questions} câu) với độ khó là "{difficulty}" bằng ngôn ngữ "{language}".
+Hãy đọc tài liệu bài giảng (slide) dưới đây và tạo ra một bộ câu hỏi trắc nghiệm ({num_questions_prompt}) với độ khó là "{difficulty}" bằng ngôn ngữ "{language}".
 
 Nhiệm vụ của bạn:
-1. Tạo đúng {num_questions} câu hỏi trắc nghiệm chất lượng cao, bao quát các kiến thức chính trong tài liệu.
+1. {task_1_prompt}
 2. Mỗi câu hỏi chỉ được lấy thông tin từ các trang slide đã cho. Không tự bịa thông tin nằm ngoài slide.
 3. Mỗi câu hỏi phải có chính xác 4 lựa chọn (options).
 4. **QUY TẮC THIẾT KẾ ĐÁP ÁN GÂY NHIỄU (BẮT BUỘC & CỰC KỲ KHẮT KHE)**:

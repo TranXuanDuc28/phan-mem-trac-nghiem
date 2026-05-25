@@ -275,17 +275,18 @@ export default function FileUploader({ onQuizSelected }) {
                   Số lượng câu hỏi
                 </label>
                 <div className="row g-2">
-                  {[20, 30, 40, 50].map((num) => (
-                    <div className="col-3" key={num}>
+                  {[20, 30, 40, 50, 0].map((num) => (
+                    <div className="col" key={num}>
                       <button
                         type="button"
                         onClick={() => setNumQuestions(num)}
-                        className={`w-100 py-2 btn ${
+                        className={`w-100 py-2 btn text-nowrap ${
                           numQuestions === num ? 'btn-primary' : 'btn-outline-secondary'
                         }`}
                         disabled={generating}
+                        style={{ fontSize: '13px', paddingLeft: '2px', paddingRight: '2px' }}
                       >
-                        {num}
+                        {num === 0 ? 'Tự động' : num}
                       </button>
                     </div>
                   ))}
