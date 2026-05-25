@@ -24,26 +24,20 @@ except ImportError:
 Base.metadata.create_all(bind=engine)
 
 # Migration to add creator and subject columns if they do not exist
-try:
-    with engine.begin() as conn:
-        try:
-            conn.execute(text("ALTER TABLE slides ADD COLUMN creator VARCHAR(100)"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE quizzes ADD COLUMN creator VARCHAR(100)"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE slides ADD COLUMN subject VARCHAR(100) DEFAULT 'Chủ nghĩa xã hội khoa học'"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE quizzes ADD COLUMN subject VARCHAR(100) DEFAULT 'Chủ nghĩa xã hội khoa học'"))
-        except Exception:
-            pass
-except Exception as e:
-    print(f"Migration error: {e}")
+migration_statements = [
+    "ALTER TABLE slides ADD COLUMN creator VARCHAR(100)",
+    "ALTER TABLE quizzes ADD COLUMN creator VARCHAR(100)",
+    "ALTER TABLE slides ADD COLUMN subject VARCHAR(100) DEFAULT 'Chủ nghĩa xã hội khoa học'",
+    "ALTER TABLE quizzes ADD COLUMN subject VARCHAR(100) DEFAULT 'Chủ nghĩa xã hội khoa học'"
+]
+
+for stmt in migration_statements:
+    try:
+        with engine.begin() as conn:
+            conn.execute(text(stmt))
+    except Exception as e:
+        # Ignore errors if column already exists or other migration constraint issues
+        pass
 
 app = FastAPI(title="AI Slide Quiz Generator API")
 
